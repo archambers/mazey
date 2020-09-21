@@ -1,50 +1,16 @@
 import pygame
 import random
-from collections import deque
+from constants import *
+from board import Square
+from algorithms import rtdfs, rtbfs, rtastar
 
 pygame.init()
-
-HEIGHT, WIDTH = 700, 1000
-ROWS, COLS = 70, 100
-ROW_H = HEIGHT // ROWS
-COL_W = WIDTH // COLS
-PAD = 1
-
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-RED = (255, 0, 0)
-YELLOW = (255, 255, 0)
-PURPLE = (128, 0, 128)
-CYAN = (0, 128, 128)
 
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("grid")
 clock = pygame.time.Clock()
 
-preset = [[1 if random.random() > 0.6 else 0 for _ in range(COLS)] for _ in range(ROWS)]
-
-
-class Square:
-    def __init__(self, x, y):
-        if preset[y][x] == 1:
-            self.color = BLACK
-        else:
-            self.color = WHITE
-        self.width = COL_W - PAD
-        self.height = ROW_H - PAD
-        self.x = x
-        self.y = y
-
-    def swap_color(self):
-        if self.color == WHITE:
-            self.color = BLACK
-        else:
-            self.color = WHITE
-
-    def draw(self):
-        pygame.draw.rect(WIN, self.color, (self.x * COL_W, self.y * ROW_H, self.width, self.height))
+# preset = [[1 if random.random() > 0.6 else 0 for _ in range(COLS)] for _ in range(ROWS)]
 
 
 two_d = [[Square(i % COLS, j % ROWS) for i in range(COLS)] for j in range(ROWS)]
@@ -63,6 +29,7 @@ def create_adj(square_list):
                     adj_list[square].add(assoc)
     return adj_list
 
+
 def create_adj_2(square_list):
     adj_list = {square: [] for square in square_list}
     for square in adj_list:
@@ -74,59 +41,6 @@ def create_adj_2(square_list):
                 if abs(square.y - assoc.y) == 2 and assoc.color != WHITE:
                     adj_list[square].append(assoc)
     return adj_list
-
-
-def dfs(start, end, adj):
-    stack = [start]
-    visited = set()
-    path = {}
-    while stack:
-        curr = stack.pop()
-        visited.add(curr)
-        for neighbor in adj[curr]:
-            if neighbor not in visited:
-                stack.append(neighbor)
-                path[neighbor] = curr
-                neighbor.color = PURPLE
-                if neighbor == end:
-                    return path
-    print('no path')
-    return False
-
-
-def rtdfs(start, end, adj):
-    stack = [start]
-    visited = set()
-    path = {}
-    while stack:
-        curr = stack.pop()
-        visited.add(curr)
-        nbrs = []
-        for neighbor in adj[curr]:
-            if neighbor not in visited:
-                stack.append(neighbor)
-                path[neighbor] = curr
-                nbrs.append(neighbor)
-        yield (curr, nbrs, path)
-
-
-def bfs(start, end, adj):
-    stack = deque()
-    stack.append(start)
-    visited = set()
-    path = {}
-    while stack:
-        curr = stack.popleft()
-        visited.add(curr)
-        for neighbor in adj[curr]:
-            if neighbor not in visited:
-                stack.append(neighbor)
-                path[neighbor] = curr
-                neighbor.color = CYAN
-                if neighbor == end:
-                    return path
-    print('no path')
-    return False
 
 
 class Board:
@@ -158,11 +72,47 @@ class Board:
                             square.color = WHITE
 
 
+
 def main():
     run = True
     board = Board()
     start, end = None, None
     board.create_maze()
+    adj = create_adj(square_list)
+
+    algos = {'dfs': rtdfs, 'bfs': rtbfs, 'astar': rtastar}
+
+    def run_maze_solver(algo, start, end):
+        p = algos[algo](start, end, adj)
+        finished = False
+        counter = 0
+        path = None
+        while not finished:
+            cont = next(p)
+            if cont[0] == end:
+                break
+            if counter > 0:
+                cont[0].color = PURPLE
+            for n in cont[1]:
+                if n == end:
+                    finished = True
+                    path = cont[2]
+                    break
+                n.color = CYAN
+            counter += 1
+            board.draw()
+            pygame.display.update()
+            clock.tick(60)
+        print(f'{counter} squares explored via {algo}')
+
+        selected = end
+        counter2 = 0
+        while selected is not start:
+            if counter2 > 0:
+                selected.color = YELLOW
+            selected = path[selected]
+            counter2 += 1
+        print(f'{algo} path is {counter2} long')
 
     while run:
 
@@ -174,83 +124,24 @@ def main():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = pygame.mouse.get_pos()
                 two_d[y // ROW_H][x // COL_W].swap_color()
-                # for square in square_list:
-                #     if square.x * COL_W < x < (square.x * COL_W + square.width):
-                #         if square.y * ROW_H < y < (square.y * ROW_H + square.height):
-                #             square.swap_color()
+
 
             if event.type == pygame.KEYDOWN:
 
-                # starts dfs maze solver
-                if event.key == pygame.K_RETURN:
-                    adj = create_adj(square_list)
-                    p = dfs(start, end, adj)
-                    selected = end
-                    counter = 0
-                    if p:
-                        while selected is not start:
-                            if counter > 0:
-                                selected.color = BLUE
-                            selected = p[selected]
-                            counter += 1
-                    else:
-                        print('no solution')
-                    print(f'dfs length: {counter}')
-
                 if event.key == pygame.K_p:
-                    adj = create_adj(square_list)
-                    p = rtdfs(start, end, adj)
-                    finished = False
-                    counter = 0
-                    path = None
-                    while not finished:
-                        cont = next(p)
-                        if cont[0] == end:
-                            break
-                        if counter > 0:
-                            cont[0].color = PURPLE
-                        for n in cont[1]:
-                            if n == end:
-                                finished = True
-                                path = cont[2]
-                                break
-                            n.color = CYAN
-                        counter += 1
-                        board.draw()
-                        pygame.display.update()
-                        clock.tick(30)
+                    run_maze_solver('dfs', start, end)
 
-                    selected = end
-                    counter2 = 0
-                    while selected is not start:
-                            if counter2 > 0:
-                                selected.color = YELLOW
-                            selected = path[selected]
-                            counter2 += 1
+                if event.key == pygame.K_o:
+                    run_maze_solver('bfs', start, end)
 
-
-                # starts bfs maze solver
-                elif event.key == pygame.K_BACKSPACE:
-                    adj = create_adj(square_list)
-                    p = bfs(start, end, adj)
-                    selected = end
-                    counter = 0
-                    if p:
-                        while selected is not start:
-                            if counter > 0:
-                                selected.color = YELLOW
-                            selected = p[selected]
-                            counter += 1
-                    else:
-                        print('no solution')
-                    print(f'bfs length: {counter}')
+                if event.key == pygame.K_i:
+                    run_maze_solver('astar', start, end)
 
                 # allows player to reset the board with the same maze
                 elif event.key == pygame.K_r:
                     for square in square_list:
-                        if square.color != BLACK:
+                        if square.color not in {BLACK, GREEN, RED}:
                             square.color = WHITE
-                    start = end = None
 
                 # allows player to set start by hovering
                 # over square and pressing s
@@ -263,17 +154,7 @@ def main():
                     else:
                         square.color = WHITE
                         start = None
-                    # for square in square_list:
-                    #     if square.x * COL_W < x < (square.x * COL_W + square.width):
-                    #         if square.y * ROW_H < y < (square.y * ROW_H + square.height):
-                    #             if square.color == WHITE:
-                    #                 square.color = GREEN
-                    #                 start = square
-                    #             else:
-                    #                 square.color = WHITE
-                    #                 start = None
 
-                # allows player to set goal by hovering
                 # over square and pressing e
                 elif event.key == pygame.K_e:
                     x, y = pygame.mouse.get_pos()
