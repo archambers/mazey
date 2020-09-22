@@ -1,8 +1,7 @@
 import pygame
-import random
 from constants import *
-from board import Square
-from algorithms import rtdfs, rtbfs, rtastar
+from board import Board
+from algorithms import rtdfs, rtbfs, rtastar, rtastarm
 
 pygame.init()
 
@@ -13,77 +12,19 @@ clock = pygame.time.Clock()
 # preset = [[1 if random.random() > 0.6 else 0 for _ in range(COLS)] for _ in range(ROWS)]
 
 
-two_d = [[Square(i % COLS, j % ROWS) for i in range(COLS)] for j in range(ROWS)]
-square_list = [square for row in two_d for square in row]
-
-
-def create_adj(square_list):
-    adj_list = {square: set() for square in square_list}
-    for square in adj_list:
-        for assoc in square_list:
-            if square.y == assoc.y:
-                if abs(square.x - assoc.x) == 1 and assoc.color != BLACK:
-                    adj_list[square].add(assoc)
-            if square.x == assoc.x:
-                if abs(square.y - assoc.y) == 1 and assoc.color != BLACK:
-                    adj_list[square].add(assoc)
-    return adj_list
-
-
-def create_adj_2(square_list):
-    adj_list = {square: [] for square in square_list}
-    for square in adj_list:
-        for assoc in square_list:
-            if square.y == assoc.y:
-                if abs(square.x - assoc.x) == 2 and assoc.color != WHITE:
-                    adj_list[square].append(assoc)
-            if square.x == assoc.x:
-                if abs(square.y - assoc.y) == 2 and assoc.color != WHITE:
-                    adj_list[square].append(assoc)
-    return adj_list
-
-
-class Board:
-    def __init__(self):
-        self.s_l = [[Square(col % COLS, row % ROWS) for col in range(COLS)]
-                    for row in range(ROWS)]
-        self.flat = [square for row in self.s_l for square in row]
-
-    def draw(self):
-        for square in square_list:
-            square.draw()
-
-    def create_maze(self):
-        for square in square_list:
-            square.color = BLACK
-        seed = random.choice(square_list)
-        stack = [seed]
-        seed.color = WHITE
-        adj = create_adj_2(square_list)
-        while stack:
-            idx = random.randint(0, len(stack) - 1)
-            curr = stack.pop(idx)
-            for neighbor in adj[curr]:
-                if neighbor.color == BLACK:
-                    stack.append(neighbor)
-                    neighbor.color = WHITE
-                    for square in square_list:
-                        if square.x == ((curr.x + neighbor.x) // 2) and (square.y == (curr.y + neighbor.y) // 2):
-                            square.color = WHITE
-
-
-
 def main():
     run = True
     board = Board()
     start, end = None, None
     board.create_maze()
-    adj = create_adj(square_list)
+    # adj = board.create_adj()
+    changed = False
 
-    algos = {'dfs': rtdfs, 'bfs': rtbfs, 'astar': rtastar}
+    algos = {'dfs': rtdfs, 'bfs': rtbfs, 'astar': rtastar, 'astarm': rtastarm}
 
     def run_maze_solver(algo, start, end):
-        p = algos[algo](start, end, adj)
+        # p = algos[algo](start, end, adj)
+        p = algos[algo](start, end, board.two_d)
         finished = False
         counter = 0
         path = None
@@ -92,29 +33,32 @@ def main():
             if cont[0] == end:
                 break
             if counter > 0:
-                cont[0].color = PURPLE
+                cont[0].color = CHECKED
             for n in cont[1]:
                 if n == end:
                     finished = True
                     path = cont[2]
                     break
-                n.color = CYAN
+                n.color = FRONTIER
             counter += 1
             board.draw()
             pygame.display.update()
-            clock.tick(60)
+            # clock.tick(60)
         print(f'{counter} squares explored via {algo}')
 
         selected = end
         counter2 = 0
         while selected is not start:
             if counter2 > 0:
-                selected.color = YELLOW
+                selected.color = PATH
             selected = path[selected]
             counter2 += 1
         print(f'{algo} path is {counter2} long')
 
     while run:
+
+        # if changed:
+        #     adj = board.create_adj()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -123,53 +67,59 @@ def main():
             # allows player to draw or remove walls by clicking mouse on square
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = pygame.mouse.get_pos()
-                two_d[y // ROW_H][x // COL_W].swap_color()
+                board.two_d[y // ROW_H][x // COL_W].swap_color()
+                changed = True
 
 
             if event.type == pygame.KEYDOWN:
 
                 if event.key == pygame.K_p:
                     run_maze_solver('dfs', start, end)
+                    changed = False
 
                 if event.key == pygame.K_o:
                     run_maze_solver('bfs', start, end)
+                    changed = False
 
                 if event.key == pygame.K_i:
                     run_maze_solver('astar', start, end)
+                    changed = False
+
+                if event.key == pygame.K_u:
+                    run_maze_solver('astarm', start, end)
 
                 # allows player to reset the board with the same maze
                 elif event.key == pygame.K_r:
-                    for square in square_list:
-                        if square.color not in {BLACK, GREEN, RED}:
-                            square.color = WHITE
+                    board.clear()
 
                 # allows player to set start by hovering
                 # over square and pressing s
                 elif event.key == pygame.K_s:
                     x, y = pygame.mouse.get_pos()
-                    square = two_d[y // ROW_H][x // COL_W]
-                    if square.color == WHITE:
-                        square.color = GREEN
+                    square = board.two_d[y // ROW_H][x // COL_W]
+                    if square.color == REG:
+                        square.color = START
                         start = square
                     else:
-                        square.color = WHITE
+                        square.color = REG
                         start = None
 
                 # over square and pressing e
                 elif event.key == pygame.K_e:
                     x, y = pygame.mouse.get_pos()
-                    square = two_d[y // ROW_H][x // COL_W]
-                    if square.color == WHITE:
-                        square.color = RED
+                    square = board.two_d[y // ROW_H][x // COL_W]
+                    if square.color == REG:
+                        square.color = END
                         end = square
                     else:
-                        square.color = WHITE
+                        square.color = REG
                         end = None
 
                 # allows player to draw a new maze and reset
                 elif event.key == pygame.K_d:
                     start = end = None
                     board.create_maze()
+                    changed = True
 
 
         WIN.fill(BLACK)

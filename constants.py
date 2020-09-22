@@ -1,15 +1,27 @@
-HEIGHT, WIDTH = 600, 1000
-ROWS, COLS = 60, 100
+# from enum import Enum
+
+HEIGHT, WIDTH = 500, 1000
+ROWS, COLS = 50, 100
 ROW_H = HEIGHT // ROWS
 COL_W = WIDTH // COLS
 PAD = 0
 
-# colors
+# color definitions
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
+GREEN = (0, 128, 0)
 BLUE = (0, 0, 255)
 RED = (255, 0, 0)
 YELLOW = (255, 255, 0)
 PURPLE = (128, 0, 128)
-CYAN = (0, 128, 128)
+CYAN = (0, 255, 255)
+
+
+# class Color(Enum):
+REG = WHITE
+WALL = BLACK
+START = GREEN
+END = RED
+CHECKED = PURPLE
+FRONTIER = CYAN
+PATH = YELLOW
