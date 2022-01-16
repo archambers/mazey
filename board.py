@@ -27,7 +27,7 @@ class Square:
 
 class Board:
     def __init__(self):
-        self.two_d = [[Square(col % COLS, row % ROWS) for col in range(COLS)]
+        self.two_d = [[Square(col, row) for col in range(COLS)]
                       for row in range(ROWS)]
         self.square_list = [square for row in self.two_d for square in row]
 
